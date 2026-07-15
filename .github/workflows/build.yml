@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/kivy/buildozer:latest
+      options: --user root
 
     steps:
       - name: Checkout code
@@ -19,17 +22,30 @@ jobs:
           echo "date=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Cache Buildozer global directory
+      - name: Cache Buildozer directories
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
+          path: |
+            .buildozer-global
+            .buildozer
           key: ${{ runner.os }}-buildozer-${{ steps.get-date.outputs.date }}
 
+      - name: Install Rust and Cargo (for cryptography compiler toolchain)
+        run: |
+          apt-get update
+          apt-get install -y rustc cargo
+
       - name: Build with Buildozer
-        uses: ArtemSanya/buildozer-action@v1
-        with:
-          workdir: .
-          buildozer_version: stable
+        run: |
+          mkdir -p .buildozer-global
+          # Symlink for root user home
+          rm -rf /root/.buildozer
+          ln -sf $(pwd)/.buildozer-global /root/.buildozer
+          # Symlink for GHA home /github/home
+          mkdir -p /github/home
+          rm -rf /github/home/.buildozer
+          ln -sf $(pwd)/.buildozer-global /github/home/.buildozer
+          yes | buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

@@ -226,13 +226,16 @@ class NFCInfoCard(MDCard):
         if platform == "android":
             try:
                 from jnius import autoclass
-                Environment = autoclass("android.os.Environment")
-                downloads_dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+                String = autoclass("java.lang.String")
+                PythonActivity = autoclass("org.kivy.android.PythonActivity")
+                context = PythonActivity.mActivity
+                downloads_file = context.getExternalFilesDir(String("Download"))
+                downloads_dir = downloads_file.getAbsolutePath()
                 dest_path = Path(downloads_dir) / filename
                 dest_path.write_bytes(raw_bytes)
                 saved_path = str(dest_path)
             except Exception as e:
-                logger.error(f"Android External Storage Error: {e}")
+                logger.error(f"Android Scoped Storage Error: {e}")
                 from config import DATABASE_DIR
                 dest_path = DATABASE_DIR / filename
                 dest_path.write_bytes(raw_bytes)
