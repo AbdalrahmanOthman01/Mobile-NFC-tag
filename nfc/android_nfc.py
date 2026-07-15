@@ -249,6 +249,21 @@ class AndroidNFC:
             text = bytes(text_bytes).decode(encoding)
             return f"Text: {text}"
             
+        # Parse MIME records (e.g. vCard or File transfer)
+        elif tnf == NdefRecord.TNF_MIME_MEDIA:
+            try:
+                mime_type = bytes(type_bytes).decode("utf-8")
+                payload_str = bytes(payload_bytes).decode("utf-8", errors="replace")
+                if mime_type == "text/vcard":
+                    return f"VCARD:{payload_str}"
+                elif mime_type == "application/vnd.nfcvault.file":
+                    return f"FILE:{payload_str}"
+                else:
+                    return f"MIME {mime_type}: {payload_str}"
+            except Exception as e:
+                logger.error(f"Error decoding MIME record: {e}")
+                return f"MIME Media: {len(payload_bytes)} bytes"
+            
         return f"TNF {tnf}: Data Length {len(payload_bytes)} bytes"
 
     def _build_ndef_record(self, record_type: str, data: str) -> Optional[NdefRecord]:
@@ -259,10 +274,15 @@ class AndroidNFC:
             elif record_type == "TEXT":
                 return NdefRecord.createTextRecord(String("en"), String(data))
             elif record_type == "WIFI":
-                # Wifi configuration format (MIME: application/vnd.wfa.wsc)
-                # For simplicity, standard Kivy applications save WiFi credentials as clean text tags
-                # or URIs that mobile OS parsing engines handle automatically. We use text layout.
                 return NdefRecord.createTextRecord(String("en"), String(data))
+            elif record_type == "VCARD":
+                mime_type_java = String("text/vcard")
+                payload_bytes = String(data).getBytes(Charset.forName(String("UTF-8")))
+                return NdefRecord.createMime(mime_type_java, payload_bytes)
+            elif record_type == "FILE":
+                mime_type_java = String("application/vnd.nfcvault.file")
+                payload_bytes = String(data).getBytes(Charset.forName(String("UTF-8")))
+                return NdefRecord.createMime(mime_type_java, payload_bytes)
             return None
         except Exception as e:
             logger.error(f"Error building NDEF record: {e}")

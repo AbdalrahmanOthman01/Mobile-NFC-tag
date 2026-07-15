@@ -1,12 +1,17 @@
 import sys
 import unittest
 
-# Import the test suite
+# Import the test suites
 from tests.test_database import TestEncryptedDatabase
+from tests.test_nfc_features import TestNFCFeatures
 
 def run_suite():
     print("Starting secure unit tests runner...", flush=True)
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestEncryptedDatabase)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+    suite.addTests(loader.loadTestsFromTestCase(TestEncryptedDatabase))
+    suite.addTests(loader.loadTestsFromTestCase(TestNFCFeatures))
+    
     runner = unittest.TextTestRunner(verbosity=2, stream=sys.stdout)
     result = runner.run(suite)
     

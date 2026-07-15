@@ -52,19 +52,20 @@ class ScannerScreen(MDScreen):
             user_font_size="80sp",
             theme_text_color="Custom",
             text_color=(0.55, 0.35, 0.85, 1),
-            pos_hint={"center_x": 0.5}
+            pos_hint={"center_x": 0.5},
+            on_release=self._trigger_nfc_sheet
         )
         self.status_box.add_widget(self.pulse_icon)
 
         self.status_lbl = MDLabel(
-            text="Ready to Scan. Hold tag near the back of the device.",
+            text="Tap icon to start scanning. Hold tag near the back of the device.",
             font_style="Subtitle1",
             halign="center",
             theme_text_color="Secondary"
         )
         self.status_box.add_widget(self.status_lbl)
         
-        # Progress Bar (Pulsing scan activity)
+        # Progress Bar (Pulsing scan activity placeholder)
         self.progress_bar = MDProgressBar(
             value=0,
             size_hint_x=0.8,
@@ -122,15 +123,22 @@ class ScannerScreen(MDScreen):
 
         self.add_widget(self.main_layout)
 
+    def _trigger_nfc_sheet(self, *args):
+        from kivymd.app import MDApp
+        app = MDApp.get_running_app()
+        if hasattr(app, "root") and app.root:
+            app.root.show_nfc_sheet(mode="read", on_tag_processed=self.on_tag_scanned)
+
     def on_screen_enter(self, *args):
-        # Register scanner callback to the hardware/mock bridge
-        self.bridge.on_tag_scanned = self.on_tag_scanned
-        self.bridge.on_status_changed = self.on_status_changed
-        self.bridge.start_scan()
+        if not self.scanned_tag:
+            self._trigger_nfc_sheet()
 
     def on_screen_leave(self, *args):
-        # Stop scan when navigating away
-        self.bridge.stop_scan()
+        # Dismiss global NFC sheet if open and active
+        from kivymd.app import MDApp
+        app = MDApp.get_running_app()
+        if hasattr(app.root, "nfc_sheet") and app.root.nfc_sheet.state != "hidden":
+            app.root.nfc_sheet.dismiss()
 
     def on_status_changed(self, status: str):
         if not self.scanned_tag:
@@ -155,18 +163,16 @@ class ScannerScreen(MDScreen):
     def _open_save_dialog(self, button):
         if not self.scanned_tag:
             return
-        # Open name prompt dialog
         dialog = SaveTagDialog(self.scanned_tag, self._save_tag)
         dialog.show()
 
     def _save_tag(self, custom_name: str):
-        # Encrypt & Save to DB
         success = save_tag(
             uid=self.scanned_tag["uid"],
             tag_type=self.scanned_tag["type"],
             name=custom_name,
             payload=self.scanned_tag["payload"],
-            is_emulatable=True  # Allow card emulation
+            is_emulatable=True
         )
         if success:
             self._reset_scanner()
@@ -180,10 +186,10 @@ class ScannerScreen(MDScreen):
         
         self.status_box.size_hint_y = 1
         self.status_box.opacity = 1
-        self.status_lbl.text = "Scanning for tags..."
+        self.status_lbl.text = "Tap icon to start scanning."
         
-        # Restart physical scan loop
-        self.bridge.start_scan()
+        # Re-trigger bottom sheet scan
+        self._trigger_nfc_sheet()
 
     def _open_mock_dialog(self, button):
         # Utility to trigger simulation popup on desktop

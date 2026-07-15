@@ -1,19 +1,19 @@
-from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.bottomnavigation import MDBottomNavigation, MDBottomNavigationItem
 from ui.screens.dashboard import DashboardScreen
 from ui.screens.scanner import ScannerScreen
 from ui.screens.writer import WriterScreen
 from ui.screens.vault import VaultScreen
+from ui.components.ios_nfc_sheet import IOSNFCSheet
 
-class AppLayout(MDBoxLayout):
+class AppLayout(MDFloatLayout):
     """The root layout containing bottom tabs navigation and page handlers."""
     def __init__(self, bridge, **kwargs):
         super().__init__(**kwargs)
-        self.orientation = "vertical"
         self.bridge = bridge
 
         # Bottom navigation
-        self.nav = MDBottomNavigation()
+        self.nav = MDBottomNavigation(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
 
         # 1. Dashboard Tab
         self.tab_dashboard = MDBottomNavigationItem(
@@ -62,8 +62,15 @@ class AppLayout(MDBoxLayout):
         
         self.add_widget(self.nav)
 
-        # Hook status updates from bridge to dashboard diagnostic label
+        # iOS Style bottom sheet overlay on top of everything
+        self.nfc_sheet = IOSNFCSheet(self.bridge, self)
+        self.add_widget(self.nfc_sheet)
+        
         self.bridge.on_status_changed = self.on_nfc_status_changed
+
+    def show_nfc_sheet(self, mode="read", payload_type=None, payload_data=None, on_tag_processed=None):
+        """Triggers the global iOS-style bottom sheet scan/write modal."""
+        self.nfc_sheet.show(mode, payload_type, payload_data, on_tag_processed)
 
     def switch_to_screen(self, screen_name: str):
         """Helper to navigate programmatically between tabs."""

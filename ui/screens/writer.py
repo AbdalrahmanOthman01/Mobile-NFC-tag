@@ -1,12 +1,15 @@
+import logging
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.menu import MDDropdownMenu
+from kivy.uix.scrollview import ScrollView
 from kivy.metrics import dp
 from kivy.utils import platform
-from ui.components.dialogs import MockNFCScanDialog
+
+logger = logging.getLogger(__name__)
 
 class WriterScreen(MDScreen):
     def __init__(self, bridge, **kwargs):
@@ -15,12 +18,10 @@ class WriterScreen(MDScreen):
         self.name = "writer"
         
         # Write state variables
-        self.selected_format = "URL"  # URL, TEXT, or WIFI
+        self.selected_format = "URL"  # URL, TEXT, WIFI, VCARD, or FILE
         self.format_menu = None
-        self.writing_active = False
 
         self._build_ui()
-        self.bind(on_leave=self.on_screen_leave)
 
     def _build_ui(self):
         self.main_layout = MDBoxLayout(
@@ -46,14 +47,19 @@ class WriterScreen(MDScreen):
         )
         self.main_layout.add_widget(self.format_btn)
 
+        # Scrollview wrapper for the dynamic forms
+        self.scroll = ScrollView(size_hint=(1, 1))
+        
         # Form Inputs Container
         self.form_box = MDBoxLayout(
             orientation="vertical",
             spacing=dp(12),
-            size_hint_y=None,
-            height=dp(240)
+            size_hint_y=None
         )
-        self.main_layout.add_widget(self.form_box)
+        self.form_box.bind(minimum_height=self.form_box.setter('height'))
+        
+        self.scroll.add_widget(self.form_box)
+        self.main_layout.add_widget(self.scroll)
         
         # Initialize forms
         self._load_url_form()
@@ -66,19 +72,6 @@ class WriterScreen(MDScreen):
             on_release=self._arm_nfc_writer
         )
         self.main_layout.add_widget(self.btn_write)
-
-        # Desktop Debug Option
-        if platform not in ("android", "ios"):
-            self.debug_box = MDBoxLayout(size_hint_y=None, height=dp(50), padding=[0, dp(10)])
-            self.debug_btn = MDRaisedButton(
-                text="DEBUG: Trigger Tag Touch",
-                md_bg_color=(0.9, 0.4, 0.1, 1),
-                pos_hint={"center_x": 0.5},
-                on_release=self._open_mock_dialog,
-                disabled=True  # Disabled unless writer is armed
-            )
-            self.debug_box.add_widget(self.debug_btn)
-            self.main_layout.add_widget(self.debug_box)
 
         # Formatting Dropdown Menu setup
         self.format_menu = MDDropdownMenu(
@@ -99,64 +92,21 @@ class WriterScreen(MDScreen):
                     "text": "Wi-Fi Config (Tap to Join)",
                     "on_release": lambda: self._set_format("WIFI"),
                 },
+                {
+                    "viewclass": "OneLineListItem",
+                    "text": "vCard (Contact Card)",
+                    "on_release": lambda: self._set_format("VCARD"),
+                },
+                {
+                    "viewclass": "OneLineListItem",
+                    "text": "File Transfer",
+                    "on_release": lambda: self._set_format("FILE"),
+                },
             ],
             width_mult=4,
         )
 
-        # Overlay layer for writing state
-        self.overlay_layout = MDBoxLayout(
-            orientation="vertical",
-            padding=dp(24),
-            spacing=dp(16),
-            md_bg_color=(0.1, 0.1, 0.1, 0.95),  # Glassmorphism dark background overlay
-            pos_hint={"x": 0, "y": 0},
-            size_hint=(1, 1),
-            opacity=0,
-            disabled=True
-        )
-        
-        self.overlay_icon = MDIconButton(
-            icon="nfc-tap",
-            user_font_size="90sp",
-            theme_text_color="Custom",
-            text_color=(0.1, 0.8, 0.6, 1),
-            pos_hint={"center_x": 0.5}
-        )
-        self.overlay_status = MDLabel(
-            text="Tap NFC Tag Now",
-            font_style="H6",
-            bold=True,
-            halign="center",
-            theme_text_color="Custom",
-            text_color=(1, 1, 1, 1)
-        )
-        self.overlay_details = MDLabel(
-            text="Waiting for contactless interaction...",
-            font_style="Subtitle1",
-            halign="center",
-            theme_text_color="Custom",
-            text_color=(0.7, 0.7, 0.7, 1)
-        )
-        
-        cancel_btn = MDFlatButton(
-            text="CANCEL WRITE",
-            theme_text_color="Custom",
-            text_color=(0.9, 0.3, 0.3, 1),
-            pos_hint={"center_x": 0.5},
-            on_release=self._cancel_nfc_writer
-        )
-        
-        self.overlay_layout.add_widget(self.overlay_icon)
-        self.overlay_layout.add_widget(self.overlay_status)
-        self.overlay_layout.add_widget(self.overlay_details)
-        self.overlay_layout.add_widget(cancel_btn)
-
         self.add_widget(self.main_layout)
-        # Add overlay to screen layers
-        self.add_widget(self.overlay_layout)
-
-    def on_screen_leave(self, *args):
-        self._cancel_nfc_writer()
 
     def _open_format_menu(self, button):
         self.format_menu.open()
@@ -177,6 +127,12 @@ class WriterScreen(MDScreen):
         elif fmt_code == "WIFI":
             self.format_btn.text = "Format: Wi-Fi Config"
             self._load_wifi_form()
+        elif fmt_code == "VCARD":
+            self.format_btn.text = "Format: Contact Card"
+            self._load_vcard_form()
+        elif fmt_code == "FILE":
+            self.format_btn.text = "Format: File Transfer"
+            self._load_file_form()
 
     # Form UI loaders
     def _load_url_form(self):
@@ -213,6 +169,35 @@ class WriterScreen(MDScreen):
         self.form_box.add_widget(self.txt_ssid)
         self.form_box.add_widget(self.txt_password)
 
+    def _load_vcard_form(self):
+        self.txt_first_name = MDTextField(hint_text="First Name", size_hint_y=None, height=dp(40))
+        self.txt_last_name = MDTextField(hint_text="Last Name", size_hint_y=None, height=dp(40))
+        self.txt_phone = MDTextField(hint_text="Phone Number", size_hint_y=None, height=dp(40))
+        self.txt_email = MDTextField(hint_text="Email Address", size_hint_y=None, height=dp(40))
+        self.txt_company = MDTextField(hint_text="Company / Org", size_hint_y=None, height=dp(40))
+        self.txt_website = MDTextField(text="https://", hint_text="Website (Optional)", size_hint_y=None, height=dp(40))
+        
+        self.form_box.add_widget(self.txt_first_name)
+        self.form_box.add_widget(self.txt_last_name)
+        self.form_box.add_widget(self.txt_phone)
+        self.form_box.add_widget(self.txt_email)
+        self.form_box.add_widget(self.txt_company)
+        self.form_box.add_widget(self.txt_website)
+
+    def _load_file_form(self):
+        self.txt_filename = MDTextField(hint_text="Filename (e.g. notes.txt)", size_hint_y=None, height=dp(40))
+        self.txt_file_mime = MDTextField(text="text/plain", hint_text="MIME Type", size_hint_y=None, height=dp(40))
+        self.txt_file_content = MDTextField(
+            hint_text="File Contents",
+            helper_text="Warning: NFC tags have very limited capacity (typically < 800 bytes).",
+            helper_text_mode="on_focus",
+            multiline=True,
+            max_height="120dp"
+        )
+        self.form_box.add_widget(self.txt_filename)
+        self.form_box.add_widget(self.txt_file_mime)
+        self.form_box.add_widget(self.txt_file_content)
+
     # Core write operations
     def _get_payload_data(self) -> str:
         """Serializes form inputs into clean tag formats."""
@@ -228,8 +213,28 @@ class WriterScreen(MDScreen):
             password = self.txt_password.text.strip()
             if not ssid:
                 return ""
-            # Wi-Fi standard config string format
             return f"WIFI:S:{ssid};T:WPA;P:{password};;"
+        elif self.selected_format == "VCARD":
+            from nfc.parsers import make_vcard
+            fn = self.txt_first_name.text.strip()
+            ln = self.txt_last_name.text.strip()
+            phone = self.txt_phone.text.strip()
+            email = self.txt_email.text.strip()
+            company = self.txt_company.text.strip()
+            web = self.txt_website.text.strip()
+            
+            if not fn and not ln:
+                return ""
+            return make_vcard(fn, ln, phone, email, company, web)
+        elif self.selected_format == "FILE":
+            from nfc.parsers import make_file_payload
+            filename = self.txt_filename.text.strip()
+            mime = self.txt_file_mime.text.strip()
+            content = self.txt_file_content.text.strip()
+            
+            if not filename or not content:
+                return ""
+            return make_file_payload(filename, mime, content)
         return ""
 
     def _arm_nfc_writer(self, button):
@@ -237,74 +242,18 @@ class WriterScreen(MDScreen):
         if not payload:
             return
             
-        # Hook up callback hooks
-        self.bridge.on_tag_written = self.on_tag_written
-        self.bridge.on_status_changed = self.on_status_changed
-        
-        # Arm hardware
-        self.bridge.prepare_write(self.selected_format, payload)
-        
-        # Show waiting overlay
-        self.writing_active = True
-        self.overlay_layout.disabled = False
-        self.overlay_layout.opacity = 1
-        
-        if hasattr(self, "debug_btn"):
-            self.debug_btn.disabled = False
+        # Call global NFC bottom sheet in write mode
+        from kivymd.app import MDApp
+        app = MDApp.get_running_app()
+        if hasattr(app, "root") and app.root:
+            app.root.show_nfc_sheet(
+                mode="write",
+                payload_type=self.selected_format,
+                payload_data=payload,
+                on_tag_processed=self.on_tag_written
+            )
 
-    def _cancel_nfc_writer(self, *args):
-        if not self.writing_active:
-            return
-            
-        self.bridge.cancel_write()
-        self.writing_active = False
-        self.overlay_layout.opacity = 0
-        self.overlay_layout.disabled = True
-        
-        if hasattr(self, "debug_btn"):
-            self.debug_btn.disabled = True
-
-    def on_status_changed(self, status: str):
-        if self.writing_active:
-            self.overlay_details.text = status
-
-    def on_tag_written(self, success: bool, message: str):
-        """Callback from bridge confirming transaction results."""
-        if not self.writing_active:
-            return
-            
-        if success:
-            self.overlay_icon.icon = "checkbox-marked-circle"
-            self.overlay_icon.text_color = (0.1, 0.8, 0.4, 1)
-            self.overlay_status.text = "Write Complete"
-            self.overlay_details.text = message
-            
-            # Dismiss overlay after a slight delay
-            from kivy.clock import Clock
-            Clock.schedule_once(self._finish_transaction, 1.8)
-        else:
-            self.overlay_icon.icon = "alert-circle"
-            self.overlay_icon.text_color = (0.9, 0.3, 0.3, 1)
-            self.overlay_status.text = "Transaction Failed"
-            self.overlay_details.text = message
-
-    def _finish_transaction(self, dt):
-        self.writing_active = False
-        self.overlay_layout.opacity = 0
-        self.overlay_layout.disabled = True
-        
-        # Restore icons
-        self.overlay_icon.icon = "nfc-tap"
-        self.overlay_icon.text_color = (0.1, 0.8, 0.6, 1)
-        self.overlay_status.text = "Tap NFC Tag Now"
-        
-        # Clear fields
+    def on_tag_written(self, result: dict):
+        """Callback triggered on successful completion of nfc write operation."""
+        # Clean fields
         self._set_format(self.selected_format)
-        
-        if hasattr(self, "debug_btn"):
-            self.debug_btn.disabled = True
-
-    def _open_mock_dialog(self, button):
-        # Allow triggering mock card tap on desktop inside writing mode
-        dialog = MockNFCScanDialog(self.bridge)
-        dialog.show()

@@ -161,7 +161,17 @@ class DashboardScreen(MDScreen):
         self.status_label.text = status
 
     def _trigger_scanner_nav(self, button):
-        self.switch_to_screen("scanner")
+        # Trigger the global iOS-style bottom sheet scan modal
+        app_layout = self.switch_to_screen.__self__
+        
+        def _on_tag_processed(tag_info):
+            # Navigate to the scanner screen
+            self.switch_to_screen("scanner")
+            # Populate scanner screen results
+            if hasattr(app_layout, "scanner_screen"):
+                app_layout.scanner_screen.on_tag_scanned(tag_info)
+                
+        app_layout.show_nfc_sheet(mode="read", on_tag_processed=_on_tag_processed)
 
     def _navigate_to_vault(self, card):
         self.switch_to_screen("vault")

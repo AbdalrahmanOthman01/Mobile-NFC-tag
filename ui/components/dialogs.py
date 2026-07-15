@@ -35,6 +35,18 @@ PRESETS = [
         "payload": "URL: https://github.com/google/gemini"
     },
     {
+        "name": "Jane Doe Contact vCard",
+        "uid": "55:DD:66:EE:77",
+        "type": "NDEF Tag",
+        "payload": "VCARD:BEGIN:VCARD\nVERSION:3.0\nN:Doe;Jane;;;\nFN:Jane Doe\nORG:NFC Vault Ltd\nTEL;TYPE=CELL:+1-555-8822\nEMAIL:jane@nfcvault.org\nURL:https://nfcvault.org\nEND:VCARD"
+    },
+    {
+        "name": "Project Readme File",
+        "uid": "88:FF:99:AA:00",
+        "type": "NDEF Tag",
+        "payload": "FILE:{\"name\": \"readme.txt\", \"mime\": \"text/plain\", \"data\": \"VGhpcyBpcyBhIHNlY3VyZSBmaWxlIHRyYW5zZmVycmVkIG92ZXIgTkZDIGJ5IHRoZSBORkMgVmF1bHQgYXBwbGljYXRpb24u\"}"
+    },
+    {
         "name": "Blank Tag (NDEF Format)",
         "uid": "00:11:22:33:44",
         "type": "NDEF Tag",
