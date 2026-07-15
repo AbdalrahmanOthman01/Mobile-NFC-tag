@@ -33,8 +33,13 @@ jobs:
       - name: Build with Buildozer
         run: |
           mkdir -p .buildozer-global
+          # Symlink for root user home
           rm -rf /root/.buildozer
           ln -sf $(pwd)/.buildozer-global /root/.buildozer
+          # Symlink for GHA home /github/home
+          mkdir -p /github/home
+          rm -rf /github/home/.buildozer
+          ln -sf $(pwd)/.buildozer-global /github/home/.buildozer
           yes | buildozer android debug
 
       - name: Upload APK Artifact
