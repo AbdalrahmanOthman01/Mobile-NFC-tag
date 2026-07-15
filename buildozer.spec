@@ -23,7 +23,7 @@ version = 1.0.0
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.3.0,kivymd==1.2.0,cryptography,pyjnius
+requirements = python3,kivy==2.3.0,kivymd==1.2.0,cryptography,openssl,pyjnius,plyer
 
 # (str) Supported orientations (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
@@ -52,6 +52,8 @@ android.ndk = 26b
 
 # (bool) Use --private data directory (True) or public (False)
 android.private_storage = True
+android.accept_sdk_license = True
+android.extra_manifest_application_xml = %(source.dir)s/nfc/manifest_additions.xml
 
 # (list) Android additional Java source dirs to compile
 # This is where we put our custom HostApduService.java class
@@ -79,7 +81,7 @@ android.add_resources = nfc/java_hce/res
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
+log_level = 1
 
 # (int) Display warning if buildozer is run as root (0 = False, 1 = True)
-warn_on_root = 1
+warn_on_root = 0
