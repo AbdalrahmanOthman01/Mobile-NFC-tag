@@ -26,9 +26,10 @@ jobs:
           key: ${{ runner.os }}-buildozer-${{ steps.get-date.outputs.date }}
 
       - name: Build with Buildozer
-        uses: ArtemSanya/buildozer-action@v1
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
         with:
-          workdir: .
+          command: buildozer android debug
           buildozer_version: stable
 
       - name: Upload APK Artifact
