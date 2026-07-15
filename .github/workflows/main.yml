@@ -22,15 +22,20 @@ jobs:
           echo "date=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Cache Buildozer global directory
+      - name: Cache Buildozer directories
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
+          path: |
+            .buildozer-global
+            .buildozer
           key: ${{ runner.os }}-buildozer-${{ steps.get-date.outputs.date }}
 
       - name: Build with Buildozer
         run: |
-          echo "y" | buildozer android debug
+          mkdir -p .buildozer-global
+          rm -rf /root/.buildozer
+          ln -sf $(pwd)/.buildozer-global /root/.buildozer
+          yes | buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
