@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/kivy/buildozer:latest
+      options: --user root
 
     steps:
       - name: Checkout code
@@ -26,11 +29,8 @@ jobs:
           key: ${{ runner.os }}-buildozer-${{ steps.get-date.outputs.date }}
 
       - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+        run: |
+          buildozer --root android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
