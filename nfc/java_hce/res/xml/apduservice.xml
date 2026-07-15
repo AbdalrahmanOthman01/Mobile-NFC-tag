@@ -1,0 +1,9 @@
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="Secure Digital Badge Emulation Service"
+    android:requireDeviceUnlock="false">
+    <aid-group android:description="NFC Badge AID"
+               android:category="other">
+        <!-- Our Custom Secure Application Identifier -->
+        <aid-filter android:name="F0010203040506"/>
+    </aid-group>
+</host-apdu-service>
