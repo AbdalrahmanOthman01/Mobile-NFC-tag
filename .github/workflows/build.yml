@@ -30,21 +30,28 @@ jobs:
             .buildozer
           key: ${{ runner.os }}-buildozer-${{ steps.get-date.outputs.date }}
 
-      - name: Install Rust and Cargo (for cryptography compiler toolchain)
+      - name: Install Rust and Cargo via rustup (with Android targets)
         run: |
-          apt-get update
-          apt-get install -y rustc cargo
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          # Load cargo environment for the current step to register targets
+          . "$HOME/.cargo/env"
+          rustup target add aarch64-linux-android armv7-linux-androideabi
 
       - name: Build with Buildozer
         run: |
+          # Fix ownership of cached directories to prevent permission errors
+          sudo chown -R $(id -u):$(id -g) . 2>/dev/null || true
           mkdir -p .buildozer-global
+          sudo chown -R $(id -u):$(id -g) .buildozer-global 2>/dev/null || true
           # Symlink for root user home
-          rm -rf /root/.buildozer
-          ln -sf $(pwd)/.buildozer-global /root/.buildozer
+          sudo rm -rf /root/.buildozer
+          sudo ln -sf $(pwd)/.buildozer-global /root/.buildozer
           # Symlink for GHA home /github/home
-          mkdir -p /github/home
-          rm -rf /github/home/.buildozer
-          ln -sf $(pwd)/.buildozer-global /github/home/.buildozer
+          sudo mkdir -p /github/home
+          sudo rm -rf /github/home/.buildozer
+          sudo ln -sf $(pwd)/.buildozer-global /github/home/.buildozer
+          sudo chown -R $(id -u):$(id -g) /github/home 2>/dev/null || true
           yes | buildozer android debug
 
       - name: Upload APK Artifact
